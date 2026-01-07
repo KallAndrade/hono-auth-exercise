@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { createColegues as createColegue, findAllColeagues, findColegueByEmail as findColegueaByEmail, initializeDatabase, sql } from '../lib/db'
 import { generateToken } from './auth'
 import { authMiddleware } from './auth-middleware'
+import { hash, compare } from "bcrypt";
 
 type User = {
   id: string
@@ -31,8 +32,9 @@ app.post('/login', async (c) => {
 
   if (!user) {
     return c.json({ error: 'User does not exist' }, 404)
-  } 
-  if (user.password !== password) {
+  }
+  const isPasswordValid = await compare(password, user.password)
+  if (!isPasswordValid) {
     return c.json({ error: 'Invalid credentials' }, 401)
   }
 
@@ -53,8 +55,9 @@ app.post('/signup', async (c) => {
 
   console.log('Create coleague:', { name, email, role })
 
+  const hashedPassword = await hash(password, 10);
   try {
-    const createdUser = await createColegue(name, email, password, role);
+    const createdUser = await createColegue(name, email, hashedPassword, role);
 
     const token = await generateToken({ sub: createdUser.id, email: createdUser.email })
 
